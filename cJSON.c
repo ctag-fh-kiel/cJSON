@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <ctype.h>
+#include <esp_heap_caps.h>
 
 #ifdef ENABLE_LOCALES
 #include <locale.h>
@@ -58,6 +59,8 @@
 #include "cJSON.h"
 
 /* define our own boolean type */
+#undef true
+#undef false
 #define true ((cJSON_bool)1)
 #define false ((cJSON_bool)0)
 
@@ -91,6 +94,18 @@ CJSON_PUBLIC(const char*) cJSON_Version(void)
     sprintf(version, "%i.%i.%i", CJSON_VERSION_MAJOR, CJSON_VERSION_MINOR, CJSON_VERSION_PATCH);
 
     return version;
+}
+
+static void *ext_malloc(size_t sz){
+    return heap_caps_malloc(sz, MALLOC_CAP_SPIRAM);
+}
+
+static void ext_free(void* ptr){
+    heap_caps_free(ptr);
+}
+
+static void *ext_realloc(void *ptr, size_t sz){
+    return heap_caps_realloc(ptr, sz, MALLOC_CAP_SPIRAM);
 }
 
 /* Case insensitive string comparison, doesn't consider two NULL pointers equal though */
@@ -139,9 +154,9 @@ static void * CJSON_CDECL internal_realloc(void *pointer, size_t size)
     return realloc(pointer, size);
 }
 #else
-#define internal_malloc malloc
-#define internal_free free
-#define internal_realloc realloc
+#define internal_malloc ext_malloc
+#define internal_free ext_free
+#define internal_realloc ext_realloc
 #endif
 
 static internal_hooks global_hooks = { internal_malloc, internal_free, internal_realloc };
